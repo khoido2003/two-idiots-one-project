@@ -163,8 +163,8 @@
 		</div>
 		<div class="text-center mt-6">
 			<Button
-				variant="primary"
-				subClass="bg-retroTeal text-retroCream hover:bg-retroPeach hover:text-retroGray transition-all duration-300 font-pixel"
+				variant="secondary"
+				subClass="hover:bg-retroBlue hover:text-retroGray transition-colors"
 			>
 				<a href="/products">Shop New Stock</a>
 			</Button>
