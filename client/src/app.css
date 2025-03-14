@@ -1,5 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Jura:wght@300..700&family=Press+Start+2P&display=swap');
+
 @import 'tailwindcss';
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
 @theme {
 	--color-retroCoral: #ff6f61; /* Warm red-orange */
@@ -15,7 +16,8 @@
 	--color-retroPurple: #c71585; /* Deep purple */
 	--color-retroBlack: #000000; /* Pure black */
 
-	--font-retroGray: 'Press Start 2P', monospace;
+	--font-retroGray: 'Jura', sans-serif;
+	--font-8bit: 'Press Start 2P', system-ui;
 }
 
 body {
