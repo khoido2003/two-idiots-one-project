@@ -156,7 +156,7 @@
 				<div class="group">
 					<ProductCard
 						{product}
-						subClass="transform group-hover:scale-105 transition-transform duration-300 bg-white border-4 border-retroTeal shadow-[4px_4px_0_#26A69A]"
+						subClass="transform group-hover:scale-105 transition-transform duration-300 bg-white border-4 border-retroBlack shadow-[4px_4px_0_#26A69A]"
 					/>
 				</div>
 			{/each}
