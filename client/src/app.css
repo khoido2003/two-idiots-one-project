@@ -1,21 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Jura:wght@300..700&family=Press+Start+2P&display=swap');
+
 @import 'tailwindcss';
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
 @theme {
 	--color-retroCoral: #ff6f61; /* Warm red-orange */
 	--color-retroCream: #eceff1; /* Soft off-white */
 	--color-retroGray: #2e2e2e; /* Dark gray */
 	--color-retroBlue: #87ceeb; /* Sky blue */
-	--color-retroPeach: '#FFCCBC';
-	--color-retroTeal: '#26A69A';
-	--color-retroPlum: '#AB47BC';
-	--color-retroSlate: '#455A64';
+	--color-retroPeach: #FFCCBC;
+	--color-retroTeal: #26A69A;
+	--color-retroPlum: #AB47BC;
+	--color-retroSlate: #455A64;
 	--color-retroYellow: #ffff00; /* Bright yellow */
 	--color-retroGreen: #00ff00; /* Lime green */
 	--color-retroPurple: #c71585; /* Deep purple */
 	--color-retroBlack: #000000; /* Pure black */
 
-	--font-retroGray: 'Press Start 2P', monospace;
+	--font-retroGray: 'Jura', sans-serif;
+	--font-8bit: 'Press Start 2P', system-ui;
 }
 
 body {

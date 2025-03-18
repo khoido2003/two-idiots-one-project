@@ -156,15 +156,15 @@
 				<div class="group">
 					<ProductCard
 						{product}
-						subClass="transform group-hover:scale-105 transition-transform duration-300 bg-white border-4 border-retroTeal shadow-[4px_4px_0_#26A69A]"
+						subClass="transform group-hover:scale-105 transition-transform duration-300 bg-white border-4 border-retroBlack shadow-[4px_4px_0_#26A69A]"
 					/>
 				</div>
 			{/each}
 		</div>
 		<div class="text-center mt-6">
 			<Button
-				variant="primary"
-				subClass="bg-retroTeal text-retroCream hover:bg-retroPeach hover:text-retroGray transition-all duration-300 font-pixel"
+				variant="secondary"
+				subClass="hover:bg-retroBlue hover:text-retroGray transition-colors"
 			>
 				<a href="/products">Shop New Stock</a>
 			</Button>
