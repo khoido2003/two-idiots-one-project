@@ -1,17 +1,23 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"server/handlers"
 	"server/models"
+	"server/routers"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
+
+// Run project: go run .
+// Clean up unused dependency: go mod tidy
+// Dowload dependency: go mod download
 
 func main() {
 
@@ -24,31 +30,34 @@ func main() {
 		return
 	}
 
-	db, err := gorm.Open(postgres.Open(dbUrl), &gorm.Config{})
+	// Open connect to Postgres
+	db, err := gorm.Open(postgres.Open(dbUrl), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
 
 	if err != nil {
-		log.Fatal("Failed to connect to the database: %v", err)
+		log.Printf("Failed to connect to the database: %v", err)
 	}
 
-	err = db.AutoMigrate(
-		&models.User{}, &models.Category{}, &models.Product{},
-		&models.ProductImage{}, &models.ProductSpec{}, &models.Cart{},
-		&models.Order{}, &models.OrderItem{}, &models.Review{},
-	)
-	if err != nil {
-		log.Fatalf("Failed to migrate: %v", err)
+	if os.Getenv("MIGRATE") == "true" {
+		fmt.Println("Start migrating database schema....")
+		err = db.AutoMigrate(
+			&models.User{}, &models.Category{}, &models.Product{},
+			&models.ProductImage{}, &models.ProductSpec{}, &models.Cart{},
+			&models.Order{}, &models.OrderItem{}, &models.Review{},
+		)
+		if err != nil {
+			log.Fatalf("Failed to migrate: %v", err)
+		}
 	}
 
-	router := chi.NewRouter()
-	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://*", "http://*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"*"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: false,
-		MaxAge:           300,
-	}))
+	// Create Handler Context
+	handlerContext := handlers.New(db)
 
+	// Setup router
+	router := routers.NewRouter(handlerContext)
+
+	// Init server
 	server := &http.Server{
 		Handler: router,
 		Addr:    ":" + portStr,
