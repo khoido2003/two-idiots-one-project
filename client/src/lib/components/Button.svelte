@@ -5,6 +5,14 @@
 	export let subClass = '';
 	export let disabled = false;
 	export let type: 'button' | 'submit' | 'reset' | null | undefined = 'button';
+
+	const object: { name: String } = {
+		name: 'khoi'
+	};
+
+	function foo() {
+		console.log('');
+	}
 </script>
 
 <button
