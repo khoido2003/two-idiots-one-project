@@ -6,6 +6,7 @@
     import { createUploader } from '$lib/utils/uploadthing';
     import { UploadButton } from '@uploadthing/svelte';
     import type { OurFileRouter } from '$lib/server/uploadthing';
+    import { GLOBAL } from '$lib';
 
     interface ProductImage {
         url: string;
@@ -81,9 +82,11 @@
 
     onMount(async () => {
         try {
-            const response = await fetch('/v1/categories');
+            const response = await fetch(`${GLOBAL.SERVER_URL}/categories`);
             if (response.ok) {
-                categories = await response.json();
+                const res = await response.json();
+                categories = res.categories;
+                console.log(categories);
             } else {
                 error = 'Failed to load categories';
             }
@@ -113,7 +116,7 @@
         success = '';
 
         try {
-            const response = await fetch('/v1/products', {
+            const response = await fetch(`${GLOBAL.SERVER_URL}/products`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
