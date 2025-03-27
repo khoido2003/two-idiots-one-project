@@ -54,6 +54,9 @@ func main() {
 	// Create Handler Context
 	handlerContext := handlers.New(db)
 
+	// Seeding data here
+	// SeedCategories(db)
+
 	// Setup router
 	router := routers.NewRouter(handlerContext)
 
