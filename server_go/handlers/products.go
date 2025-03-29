@@ -95,9 +95,8 @@ func (h *HandlerContext) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetProducts - Retrieve products with filtering and pagination
+// GetProducts - Retrieve products with filtering, sorting, and pagination
 func (h *HandlerContext) GetProducts(w http.ResponseWriter, r *http.Request) {
-	// Build the base query with preloaded relationships
 	query := h.db.Session(&gorm.Session{PrepareStmt: false}).Preload("Images").Preload("Specs").Preload("Category")
 
 	// Search filter
@@ -124,6 +123,29 @@ func (h *HandlerContext) GetProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Stock filter (for limited deals)
+	if maxStockStr := r.URL.Query().Get("maxStock"); maxStockStr != "" {
+		if maxStock, err := strconv.Atoi(maxStockStr); err == nil {
+			query = query.Where("products.stock <= ?", maxStock)
+		}
+	}
+
+	// Sorting (e.g., for new arrivals)
+	if sort := r.URL.Query().Get("sort"); sort != "" {
+		switch sort {
+		case "createdAtDesc":
+			query = query.Order("products.created_at DESC")
+
+		case "createdAtAsc":
+			query = query.Order("products.created_at ASC")
+
+		case "priceAsc":
+			query = query.Order("products.price ASC")
+		case "priceDesc":
+			query = query.Order("products.price DESC")
+		}
+	}
+
 	// Pagination
 	pageStr := r.URL.Query().Get("page")
 	page, err := strconv.Atoi(pageStr)
@@ -141,12 +163,12 @@ func (h *HandlerContext) GetProducts(w http.ResponseWriter, r *http.Request) {
 
 	// Get total count for pagination
 	var total int64
-	countQuery := h.db.Model(&models.Product{}).Session(&gorm.Session{PrepareStmt: false}) // Disable prepared statements
+	countQuery := h.db.Model(&models.Product{}).Session(&gorm.Session{PrepareStmt: false})
+	// Apply same filters to count query (search, category, price, stock)
 	if search := r.URL.Query().Get("search"); search != "" {
 		searchTerm := "%" + search + "%"
 		countQuery = countQuery.Where("name ILIKE ? OR description ILIKE ?", searchTerm, searchTerm)
 	}
-
 	if category := r.URL.Query().Get("category"); category != "" && category != "All" {
 		countQuery = countQuery.Joins("JOIN categories ON categories.id = products.category_id").
 			Where("categories.name = ?", category)
@@ -161,6 +183,11 @@ func (h *HandlerContext) GetProducts(w http.ResponseWriter, r *http.Request) {
 			countQuery = countQuery.Where("price <= ?", maxPrice)
 		}
 	}
+	if maxStockStr := r.URL.Query().Get("maxStock"); maxStockStr != "" {
+		if maxStock, err := strconv.Atoi(maxStockStr); err == nil {
+			countQuery = countQuery.Where("stock <= ?", maxStock)
+		}
+	}
 	if err := countQuery.Count(&total).Error; err != nil {
 		log.Printf("Failed to count products: %v", err)
 		respondWithError(w, http.StatusInternalServerError, "Failed to count products")
@@ -170,12 +197,11 @@ func (h *HandlerContext) GetProducts(w http.ResponseWriter, r *http.Request) {
 	// Fetch paginated products
 	var products []models.Product
 	if err := query.Limit(limit).Offset(offset).Find(&products).Error; err != nil {
-		log.Printf("Failed to fetch products: %v", err) // Log the error for debugging
+		log.Printf("Failed to fetch products: %v", err)
 		respondWithError(w, http.StatusInternalServerError, "Failed to fetch products")
 		return
 	}
 
-	// Calculate total pages
 	totalPages := (int(total) + limit - 1) / limit
 
 	respondWithJson(w, http.StatusOK, map[string]interface{}{
@@ -187,7 +213,7 @@ func (h *HandlerContext) GetProducts(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetProductByID - Retrieve a specific product by ID
+// GetProductByID - Retrieve a specific product by ID with related products
 func (h *HandlerContext) GetProductByID(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -196,19 +222,62 @@ func (h *HandlerContext) GetProductByID(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Fetch the product with preloaded data
 	var product models.Product
-	// Preload related data
 	if err := h.db.Preload("Images").Preload("Specs").Preload("Category").First(&product, uint(id)).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			respondWithError(w, http.StatusNotFound, "Product not found")
 		} else {
+			log.Printf("Failed to fetch product %d: %v", id, err)
 			respondWithError(w, http.StatusInternalServerError, "Failed to fetch product")
 		}
 		return
 	}
 
+	// Fetch related products (e.g., same category, exclude current product, limit 3)
+	var related []models.Product
+	if err := h.db.
+		Preload("Images").
+		Where("category_id = ? AND id != ?", product.CategoryID, product.ID).
+		Limit(3).
+		Find(&related).Error; err != nil {
+		log.Printf("Failed to fetch related products for product %d: %v", id, err)
+		// Don't fail the request, just log and proceed without related products
+	}
+
+	// Populate RelatedIDs
+	relatedIDs := make([]uint, len(related))
+	for i, rel := range related {
+		relatedIDs[i] = rel.ID
+	}
+
+	// Response structure with related IDs
+	type ProductResponse struct {
+		ID          uint                  `json:"id"`
+		Name        string                `json:"name"`
+		Price       float64               `json:"price"`
+		Description string                `json:"description"`
+		Category    models.Category       `json:"category"`
+		Stock       int                   `json:"stock"`
+		Images      []models.ProductImage `json:"images"`
+		Specs       []models.ProductSpec  `json:"specs"`
+		RelatedIDs  []uint                `json:"related"`
+	}
+
+	response := ProductResponse{
+		ID:          product.ID,
+		Name:        product.Name,
+		Price:       product.Price,
+		Description: product.Description,
+		Category:    product.Category,
+		Stock:       product.Stock,
+		Images:      product.Images,
+		Specs:       product.Specs,
+		RelatedIDs:  relatedIDs,
+	}
+
 	respondWithJson(w, http.StatusOK, map[string]interface{}{
 		"message": "Product retrieved successfully",
-		"product": product,
+		"product": response,
 	})
 }
