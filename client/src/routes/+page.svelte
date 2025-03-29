@@ -1,86 +1,16 @@
 <!-- /src/routes/+page.svelte -->
-<script>
+<script lang="ts">
     import Button from '$lib/components/Button.svelte';
     import ProductCard from '$lib/components/ProductCard.svelte';
     import 'iconify-icon';
 
-    // Mock data for featured products
-    const featuredProducts = [
-        {
-            id: 1,
-            name: 'NES Console',
-            price: 59.99,
-            image: '/assets/nes.webp',
-            description: 'Classic 8-bit gaming console.'
-        },
-        {
-            id: 2,
-            name: 'Polaroid SX-70',
-            price: 129.99,
-            image: '/assets/polaroid.jpg',
-            description: 'Vintage instant camera.'
-        },
-        {
-            id: 3,
-            name: 'NES Console',
-            price: 59.99,
-            image: '/assets/nes.webp',
-            description: 'Classic 8-bit gaming console.'
-        },
-        {
-            id: 4,
-            name: 'Polaroid SX-70',
-            price: 129.99,
-            image: '/assets/polaroid.jpg',
-            description: 'Vintage instant camera.'
-        }
-    ];
+    export let data: {
+        featuredProducts: any[];
+        newArrivals: any[];
+        limitedDeals: any[];
+    };
 
-    // Mock data for new arrivals
-    const newArrivals = [
-        {
-            id: 3,
-            name: 'Game Boy',
-            price: 79.99,
-            image: '/assets/gameboy.jpg',
-            description: 'Portable retro gaming.'
-        },
-        {
-            id: 4,
-            name: 'VHS Player',
-            price: 49.99,
-            image: '/assets/vhs.jpg',
-            description: 'Rewind to the 80s.'
-        },
-
-        {
-            id: 3,
-            name: 'Game Boy',
-            price: 79.99,
-            image: '/assets/gameboy.jpg',
-            description: 'Portable retro gaming.'
-        },
-        {
-            id: 4,
-            name: 'VHS Player',
-            price: 49.99,
-            image: '/assets/vhs.jpg',
-            description: 'Rewind to the 80s.'
-        }
-    ];
-
-    // Mock data for limited deals
-    const limitedDeals = [
-        {
-            id: 5,
-            name: 'Atari 2600',
-            price: 39.99,
-            originalPrice: 59.99,
-            image: '/assets/atari.webp',
-            description: 'Classic arcade vibes.'
-        }
-    ];
-    // Mock testimonials
+    // Testimonials remain static for now
     const testimonials = [
         { name: 'Alex G.', quote: 'Found my dream retro console here—works like a charm!' },
         { name: 'Sam R.', quote: 'The cameras are pristine, and shipping was fast!' }
@@ -95,14 +25,10 @@
         <div
             class="absolute inset-0 bg-[url('/assets/retro-bg.png')] bg-cover bg-center opacity-80"
         ></div>
-        <!-- Dark Overlay -->
         <div class="absolute inset-0 bg-pink-950 opacity-70"></div>
-
-        <!-- CRT Overlay (optional) -->
         <div
             class="absolute inset-0 opacity-50 pointer-events-none bg-[url('/assets/retro-car.gif')] bg-no-repeat bg-cover bg-center"
         ></div>
-
         <div class="relative max-w-4xl mx-auto z-10">
             <h1
                 class="font-pixel text-4xl sm:text-4xl md:text-5xl mb-4 animate-pulse tracking-wide text-white"
@@ -128,10 +54,17 @@
         <div
             class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 justify-items-center"
         >
-            {#each featuredProducts as product}
+            {#each data.featuredProducts as product}
                 <div class="group">
                     <ProductCard
-                        {product}
+                        product={{
+                            id: product.id,
+                            name: product.name,
+                            price: product.price,
+                            image: product.images.find((img) => img.isPrimary)?.url || '',
+                            description: product.description,
+                            category: product.category.name
+                        }}
                         subClass="transform group-hover:scale-105 transition-transform duration-300"
                     />
                 </div>
@@ -154,16 +87,23 @@
         <h2 class="font-pixel text-2xl sm:text-3xl text-retroGray mb-6 text-center">
             New Arrivals
         </h2>
-        <p class=" text-center text-sm sm:text-base font-pixel text-retroGray mb-6">
+        <p class="text-center text-sm sm:text-base font-pixel text-retroGray mb-6">
             Fresh retro gear just dropped!
         </p>
         <div
             class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 px-4 sm:gap-8 justify-items-center"
         >
-            {#each newArrivals as product}
+            {#each data.newArrivals as product}
                 <div class="group">
                     <ProductCard
-                        {product}
+                        product={{
+                            id: product.id,
+                            name: product.name,
+                            price: product.price,
+                            image: product.images.find((img) => img.isPrimary)?.url || '',
+                            description: product.description,
+                            category: product.category.name
+                        }}
                         subClass="transform group-hover:scale-105 transition-transform duration-300 bg-white border-4 border-retroBlack shadow-[4px_4px_0_#26A69A]"
                     />
                 </div>
@@ -190,12 +130,12 @@
             Snag these before they vanish!
         </p>
         <div class="max-w-2xl mx-auto p-6">
-            {#each limitedDeals as deal}
+            {#each data.limitedDeals as deal}
                 <div
                     class="bg-white p-6 rounded-lg border-4 border-retroPlum shadow-[4px_4px_0_#ff6f61]"
                 >
                     <img
-                        src={deal.image}
+                        src={deal.images.find((img) => img.isPrimary)?.url || ''}
                         alt={deal.name}
                         class="w-full h-40 object-cover rounded-md mb-4 pixelated"
                     />
@@ -212,7 +152,7 @@
                             variant="primary"
                             subClass="text-retroCream hover:bg-retroCoral hover:text-retroCream transition-all duration-300 font-pixel"
                         >
-                            <a href="/products">Buy Now</a>
+                            <a href={`/products/${deal.id}`}>Buy Now</a>
                         </Button>
                     </div>
                 </div>
@@ -222,66 +162,36 @@
 
     <!-- Why Shop With Us Section -->
     <section class="bg-retroBlack py-16 px-3 sm:py-16 mb-12 sm:mb-16 rounded-2xl">
-        <!-- Heading -->
         <h2 class="font-pixel text-2xl sm:text-3xl text-center mb-10 text-retroCream">
             Why RetroTech?
         </h2>
-
-        <!-- Grid of Perks -->
         <div class="container mx-auto px-4 grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
             <div
                 class="text-center p-4 bg-retroGray text-retroCream rounded-md shadow-[4px_4px_0_#ff6f61]"
             >
-                <iconify-icon class="h-7 w-7" icon="mdi:shield-crown" with="28" height="28"
+                <iconify-icon class="h-7 w-7" icon="mdi:shield-crown" width="28" height="28"
                 ></iconify-icon>
                 <h3 class="font-pixel text-lg sm:text-xl mb-2 text-retroCoral">Authentic Gear</h3>
                 <p class="text-sm sm:text-base font-pixel">Real retro, guaranteed.</p>
             </div>
-
             <div
                 class="text-center p-4 bg-retroGray text-retroCream rounded-md shadow-[4px_4px_0_#ff6f61]"
             >
-                <iconify-icon class="h-7 w-7" icon="mdi:local-shipping" with="28" height="28"
+                <iconify-icon class="h-7 w-7" icon="mdi:truck-fast" width="28" height="28"
                 ></iconify-icon>
                 <h3 class="font-pixel text-lg sm:text-xl mb-2 text-retroCoral">Fast Shipping</h3>
                 <p class="text-sm sm:text-base font-pixel">Quick to your door.</p>
             </div>
-
             <div
                 class="text-center p-4 bg-retroGray text-retroCream rounded-md shadow-[4px_4px_0_#ff6f61]"
             >
-                <iconify-icon class="h-7 w-7" icon="mdi:robot" with="28" height="28"></iconify-icon>
+                <iconify-icon class="h-7 w-7" icon="mdi:robot" width="28" height="28"
+                ></iconify-icon>
                 <h3 class="font-pixel text-lg sm:text-xl mb-2 text-retroCoral">AI Assist</h3>
                 <p class="text-sm sm:text-base font-pixel">24/7 Tech help, 8-bit style.</p>
             </div>
         </div>
     </section>
-
-    <style>
-        .pixelated {
-            image-rendering: pixelated;
-        }
-    </style>
-
-    <style>
-        .pixelated {
-            image-rendering: pixelated;
-        }
-
-        /* Custom bounce animation for heading */
-        @keyframes bounce {
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-8px);
-            }
-        }
-        .animate-bounce {
-            animation: bounce 2s infinite;
-        }
-    </style>
 
     <!-- Testimonials Section -->
     <section class="mb-12 sm:mb-16">
@@ -329,5 +239,17 @@
 <style>
     .pixelated {
         image-rendering: pixelated;
+    }
+    @keyframes bounce {
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-8px);
+        }
+    }
+    .animate-bounce {
+        animation: bounce 2s infinite;
     }
 </style>

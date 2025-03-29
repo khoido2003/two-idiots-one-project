@@ -1,7 +1,6 @@
 <!-- /src/routes/admin/products/+page.svelte -->
 <script lang="ts">
     import Button from '$lib/components/Button.svelte';
-    import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
     import { createUploader } from '$lib/utils/uploadthing';
     import { UploadButton } from '@uploadthing/svelte';
@@ -49,33 +48,28 @@
     let error: string = '';
     let success: string = '';
     let uploadedImageUrl: string = '';
+    let isSubmitting: boolean = false;
 
     const uploader = createUploader('imageUploader', {
         onClientUploadComplete: (res) => {
-            console.log('Upload completed:', res);
             if (res && res.length > 0) {
                 const newImageUrl = res[0].url;
-                uploadedImageUrl = newImageUrl; // Update the latest uploaded URL for display
-
-                // Check if the primary image slot is empty; if so, use it
+                uploadedImageUrl = newImageUrl;
                 if (product.images[0].url === '') {
                     product.images[0].url = newImageUrl;
                 } else {
-                    // Otherwise, append a new image to the list
                     product.images = [
                         ...product.images,
                         { url: newImageUrl, isPrimary: false, order: product.images.length }
                     ];
                 }
-                success = 'Image uploaded successfully! Added to the product images.';
+                success = 'Image uploaded successfully!';
             }
         },
         onUploadError: (error: Error) => {
-            console.error('Upload error:', error);
             error = Error(`Upload failed: ${error.message}`);
         },
         onUploadBegin: () => {
-            console.log('Upload started');
             success = 'Uploading image...';
         }
     });
@@ -86,7 +80,6 @@
             if (response.ok) {
                 const res = await response.json();
                 categories = res.categories;
-                console.log(categories);
             } else {
                 error = 'Failed to load categories';
             }
@@ -114,6 +107,44 @@
     async function submitProduct(): Promise<void> {
         error = '';
         success = '';
+        isSubmitting = true;
+
+        // Client-side validation
+        if (product.name === '') {
+            error = 'Product name is required';
+            isSubmitting = false;
+            return;
+        }
+        if (product.price <= 0) {
+            error = 'Price must be greater than 0';
+            isSubmitting = false;
+            return;
+        }
+        if (product.description === '') {
+            error = 'Description is required';
+            isSubmitting = false;
+            return;
+        }
+        if (product.categoryId === '') {
+            error = 'Category is required';
+            isSubmitting = false;
+            return;
+        }
+        if (product.stock < 0) {
+            error = 'Stock cannot be negative';
+            isSubmitting = false;
+            return;
+        }
+        if (!product.images.some((img) => img.url)) {
+            error = 'At least one image is required';
+            isSubmitting = false;
+            return;
+        }
+        if (!product.images.some((img) => img.isPrimary)) {
+            error = 'At least one image must be marked as primary';
+            isSubmitting = false;
+            return;
+        }
 
         try {
             const response = await fetch(`${GLOBAL.SERVER_URL}/products`, {
@@ -128,12 +159,13 @@
                     categoryId: parseInt(product.categoryId),
                     stock: parseInt(product.stock.toString()),
                     images: product.images,
-                    specs: product.specs
+                    specs: product.specs.filter((spec) => spec.key && spec.value) // Filter out empty specs
                 })
             });
 
             if (response.ok) {
-                success = 'Product added successfully!';
+                const data = await response.json();
+                success = data.message;
                 product = {
                     name: '',
                     price: 0,
@@ -146,10 +178,12 @@
                 uploadedImageUrl = '';
             } else {
                 const data = await response.json();
-                error = data.message || 'Failed to add product';
+                error = data.error || 'Failed to add product';
             }
         } catch (err) {
             error = 'An error occurred while adding the product';
+        } finally {
+            isSubmitting = false;
         }
     }
 </script>
@@ -161,14 +195,10 @@
         </h1>
 
         {#if error}
-            <div class="bg-retroCoral text-retroCream p-4 rounded-lg mb-6 font-pixel">
-                {error}
-            </div>
+            <div class="bg-retroCoral text-retroCream p-4 rounded-lg mb-6 font-pixel">{error}</div>
         {/if}
         {#if success}
-            <div class="bg-retroTeal text-retroCream p-4 rounded-lg mb-6 font-pixel">
-                {success}
-            </div>
+            <div class="bg-retroTeal text-retroCream p-4 rounded-lg mb-6 font-pixel">{success}</div>
         {/if}
 
         <!-- Image Upload Section -->
@@ -178,7 +208,7 @@
             <h2 class="font-pixel text-xl text-retroGray mb-4">Upload Image</h2>
             <UploadButton
                 {uploader}
-                class="ut-button bg-retroBlue text-retroCream hover:bg-retroCoral font-pixel px-3 py-1.5 sm:px-4 sm:py-2 rounded-md text-xs sm:text-sm cursor-pointer"
+                class="ut-button bg-retroBlue text-retroCream hover:bg-retroCoral font-pixel px-3 py-1.5 rounded-md text-xs cursor-pointer"
             >
                 <span slot="button-content" let:state>
                     {state.isUploading ? 'Uploading...' : 'Upload Image'}
@@ -285,8 +315,13 @@
                             <input
                                 type="checkbox"
                                 bind:checked={image.isPrimary}
-                                disabled={index !== 0 &&
-                                    product.images.some((img) => img.isPrimary && img !== image)}
+                                on:change={() => {
+                                    if (image.isPrimary) {
+                                        product.images.forEach((img) => {
+                                            if (img !== image) img.isPrimary = false;
+                                        });
+                                    }
+                                }}
                             />
                             Primary
                         </label>
@@ -337,8 +372,9 @@
                     variant="primary"
                     subClass="bg-retroCoral text-retroCream hover:bg-retroPurple hover:scale-105 transition-all"
                     type="submit"
+                    disabled={isSubmitting}
                 >
-                    Add Product to Inventory
+                    {isSubmitting ? 'Adding...' : 'Add Product to Inventory'}
                 </Button>
             </div>
         </form>
