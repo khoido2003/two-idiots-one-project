@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"server/models"
 	"strconv"
@@ -49,6 +50,18 @@ func (h *HandlerContext) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ensure at least one image is primary
+	hasPrimary := false
+	for _, img := range req.Images {
+		if img.IsPrimary {
+			hasPrimary = true
+			break
+		}
+	}
+	if !hasPrimary {
+		respondWithError(w, http.StatusBadRequest, "At least one image must be marked as primary")
+		return
+	}
 	// Check if category exists
 	var category models.Category
 	if err := h.db.First(&category, req.CategoryID).Error; err != nil {
@@ -82,19 +95,95 @@ func (h *HandlerContext) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetProducts - Retrieve all products
+// GetProducts - Retrieve products with filtering and pagination
 func (h *HandlerContext) GetProducts(w http.ResponseWriter, r *http.Request) {
-	var products []models.Product
+	// Build the base query with preloaded relationships
+	query := h.db.Session(&gorm.Session{PrepareStmt: false}).Preload("Images").Preload("Specs").Preload("Category")
 
-	// Preload related data (Images, Specs, Category)
-	if err := h.db.Preload("Images").Preload("Specs").Preload("Category").Find(&products).Error; err != nil {
+	// Search filter
+	if search := r.URL.Query().Get("search"); search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Where("products.name ILIKE ? OR products.description ILIKE ?", searchTerm, searchTerm)
+	}
+
+	// Category filter
+	if category := r.URL.Query().Get("category"); category != "" && category != "All" {
+		query = query.Joins("JOIN categories ON categories.id = products.category_id").
+			Where("categories.name = ?", category)
+	}
+
+	// Price range filter
+	if minPriceStr := r.URL.Query().Get("minPrice"); minPriceStr != "" {
+		if minPrice, err := strconv.ParseFloat(minPriceStr, 64); err == nil {
+			query = query.Where("products.price >= ?", minPrice)
+		}
+	}
+	if maxPriceStr := r.URL.Query().Get("maxPrice"); maxPriceStr != "" {
+		if maxPrice, err := strconv.ParseFloat(maxPriceStr, 64); err == nil {
+			query = query.Where("products.price <= ?", maxPrice)
+		}
+	}
+
+	// Pagination
+	pageStr := r.URL.Query().Get("page")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limitStr := r.URL.Query().Get("limit")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 8
+	}
+
+	offset := (page - 1) * limit
+
+	// Get total count for pagination
+	var total int64
+	countQuery := h.db.Model(&models.Product{}).Session(&gorm.Session{PrepareStmt: false}) // Disable prepared statements
+	if search := r.URL.Query().Get("search"); search != "" {
+		searchTerm := "%" + search + "%"
+		countQuery = countQuery.Where("name ILIKE ? OR description ILIKE ?", searchTerm, searchTerm)
+	}
+
+	if category := r.URL.Query().Get("category"); category != "" && category != "All" {
+		countQuery = countQuery.Joins("JOIN categories ON categories.id = products.category_id").
+			Where("categories.name = ?", category)
+	}
+	if minPriceStr := r.URL.Query().Get("minPrice"); minPriceStr != "" {
+		if minPrice, err := strconv.ParseFloat(minPriceStr, 64); err == nil {
+			countQuery = countQuery.Where("price >= ?", minPrice)
+		}
+	}
+	if maxPriceStr := r.URL.Query().Get("maxPrice"); maxPriceStr != "" {
+		if maxPrice, err := strconv.ParseFloat(maxPriceStr, 64); err == nil {
+			countQuery = countQuery.Where("price <= ?", maxPrice)
+		}
+	}
+	if err := countQuery.Count(&total).Error; err != nil {
+		log.Printf("Failed to count products: %v", err)
+		respondWithError(w, http.StatusInternalServerError, "Failed to count products")
+		return
+	}
+
+	// Fetch paginated products
+	var products []models.Product
+	if err := query.Limit(limit).Offset(offset).Find(&products).Error; err != nil {
+		log.Printf("Failed to fetch products: %v", err) // Log the error for debugging
 		respondWithError(w, http.StatusInternalServerError, "Failed to fetch products")
 		return
 	}
 
+	// Calculate total pages
+	totalPages := (int(total) + limit - 1) / limit
+
 	respondWithJson(w, http.StatusOK, map[string]interface{}{
-		"message":  "Products retrieved successfully",
-		"products": products,
+		"message":     "Products retrieved successfully",
+		"products":    products,
+		"totalPages":  totalPages,
+		"currentPage": page,
+		"totalItems":  total,
 	})
 }
 
