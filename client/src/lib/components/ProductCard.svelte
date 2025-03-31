@@ -13,7 +13,6 @@
     };
     export let subClass = '';
 
-
     function handleClick(e: MouseEvent) {
         const target = e.target as HTMLElement;
         if (target.closest('button')) {
@@ -25,6 +24,7 @@
     }
 </script>
 
+<!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
     class={`block bg-white w-72 p-3 sm:p-4 rounded-lg shadow-md hover:shadow-xl transition-shadow ${subClass}`}
     on:click={handleClick}
@@ -42,8 +42,7 @@
         onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log(`Add ${product.name} to cart, ID: ${product.id}`); // Log button click
-        }}
+            console.log(`Add ${product.name} to cart, ID: ${product.id}`);         }}
     >
         Add to Cart
     </Button>

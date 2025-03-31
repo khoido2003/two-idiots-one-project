@@ -5,6 +5,13 @@ import (
 	"time"
 )
 
+type UserRole string
+
+const (
+	RoleUser  UserRole = "user"
+	RoleAdmin UserRole = "admin"
+)
+
 // User model
 type User struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
@@ -14,6 +21,8 @@ type User struct {
 	LastName     string    `gorm:"type:varchar(50)" json:"lastName"`
 	CreatedAt    time.Time `gorm:"default:now()" json:"createdAt"`
 	UpdatedAt    time.Time `gorm:"default:now()" json:"updatedAt"`
+	Role         UserRole  `gorm:"not null;type:varchar(20);default:'user'" json:"role"`
+	Phone        string    `gorm:"unique;not null;type:varchar(255)" json:"phone"`
 
 	CartItems []Cart   `gorm:"foreignKey:UserID" json:"cartItems"`
 	Orders    []Order  `gorm:"foreignKey:UserID" json:"orders"`
