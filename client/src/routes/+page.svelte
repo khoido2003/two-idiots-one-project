@@ -52,7 +52,7 @@
             Hot Retro Finds
         </h2>
         <div
-            class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 justify-items-center"
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 justify-items-center"
         >
             {#each data.featuredProducts as product}
                 <div class="group">
@@ -61,7 +61,7 @@
                             id: product.id,
                             name: product.name,
                             price: product.price,
-                            image: product.images.find((img) => img.isPrimary)?.url || '',
+                            image: product.images.find((img: any) => img.isPrimary)?.url || '',
                             description: product.description,
                             category: product.category.name
                         }}
@@ -91,7 +91,8 @@
             Fresh retro gear just dropped!
         </p>
         <div
-            class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 px-4 sm:gap-8 justify-items-center"
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4  gap-6 px-4 sm:gap-8 justify-items-center"
+
         >
             {#each data.newArrivals as product}
                 <div class="group">
@@ -100,7 +101,7 @@
                             id: product.id,
                             name: product.name,
                             price: product.price,
-                            image: product.images.find((img) => img.isPrimary)?.url || '',
+                            image: product.images.find((img: any) => img.isPrimary)?.url || '',
                             description: product.description,
                             category: product.category.name
                         }}
@@ -135,7 +136,7 @@
                     class="bg-white p-6 rounded-lg border-4 border-retroPlum shadow-[4px_4px_0_#ff6f61]"
                 >
                     <img
-                        src={deal.images.find((img) => img.isPrimary)?.url || ''}
+                        src={deal.images.find((img: any) => img.isPrimary)?.url || ''}
                         alt={deal.name}
                         class="w-full h-40 object-cover rounded-md mb-4 pixelated"
                     />
@@ -248,8 +249,5 @@
         50% {
             transform: translateY(-8px);
         }
-    }
-    .animate-bounce {
-        animation: bounce 2s infinite;
     }
 </style>
