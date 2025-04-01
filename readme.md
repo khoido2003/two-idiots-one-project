@@ -2,7 +2,7 @@
 
 ## Results
 
-![img](images/0.jpg)
+![img](images/0.png)
 
 ![img](images/1.png)
 
