@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -9,7 +10,11 @@ import (
 	"syscall"
 
 	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
 	"github.com/ollama/ollama/api"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // Test server: npx wscat -c ws://127.0.0.1:9089/ws
@@ -21,10 +26,57 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
+// Global variable to store product context
+var productContext string
+
+// InitializeDBAndFetchData connects to the database and fetches product data once
+func InitializeDBAndFetchData() error {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found, relying on system environment variables")
+	}
+
+	dbUrl := os.Getenv("DB_URL")
+	if dbUrl == "" {
+		return fmt.Errorf("DB_URL is not found in the environment variable")
+	}
+
+	// Open connection to Postgres
+	db, err := gorm.Open(postgres.Open(dbUrl), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to connect to the database: %v", err)
+	}
+
+	log.Println("Connected to DB successfully!")
+
+	// Fetch product data with Category preloaded
+	var products []Product
+	result := db.Preload("Category").Find(&products)
+	if result.Error != nil {
+		return fmt.Errorf("failed to fetch products: %v", result.Error)
+	}
+
+	// Format product data as a string for the model
+	var context string
+	for _, product := range products {
+		context += fmt.Sprintf(
+			"Product ID: %d, Name: %s, Price: %.2f, Stock: %d, Description: %s, Category: %s\n",
+			product.ID, product.Name, product.Price, product.Stock, product.Description, product.Category.Name,
+		)
+	}
+
+	// Store in global variable
+	productContext = context
+	log.Println("Product context loaded successfully!")
+	return nil
+}
+
 func socketHandler(w http.ResponseWriter, r *http.Request, client *api.Client) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("Error starting socket:  ", err)
+		log.Println("Error starting socket: ", err)
 		return
 	}
 
@@ -38,7 +90,7 @@ func socketHandler(w http.ResponseWriter, r *http.Request, client *api.Client) {
 			}
 
 			mes := string(buffer[:])
-			log.Println(mes)
+			log.Println("User message:", mes)
 
 			go processMessage(conn, client, &mes)
 		}
@@ -46,11 +98,24 @@ func socketHandler(w http.ResponseWriter, r *http.Request, client *api.Client) {
 }
 
 func processMessage(conn *websocket.Conn, client *api.Client, mes *string) {
-	// Prepare ollama request form
+	// Use pre-fetched product context (no DB query here)
+	if productContext == "" {
+		log.Println("Product context not initialized")
+		conn.WriteMessage(websocket.TextMessage, []byte("Error: Store data not available"))
+		return
+	}
+
+	// Prepare system message with pre-fetched product context
+	systemContent := fmt.Sprintf(
+		"You are a helpful store assistant. Use the following product information to assist the user:\n\n%s\nProvide concise responses based on this data.",
+		productContext,
+	)
+
+	// Prepare ollama request
 	ollamaMessages := []api.Message{
 		{
 			Role:    "system",
-			Content: "You are a helpful store assistant. Provide concise response",
+			Content: systemContent,
 		},
 		{
 			Role:    "user",
@@ -67,7 +132,7 @@ func processMessage(conn *websocket.Conn, client *api.Client, mes *string) {
 
 	// Function to send full data back to the client
 	consoleFunc := func(fullResponse string) error {
-		log.Printf("%v", fullResponse)
+		log.Printf("Full response: %v", fullResponse)
 		return nil
 	}
 
@@ -78,7 +143,7 @@ func processMessage(conn *websocket.Conn, client *api.Client, mes *string) {
 		}
 		return nil
 	}
-    
+
 	// Buffer to collect the full response
 	var fullResponse string
 
@@ -108,11 +173,20 @@ func main() {
 	// Channel to handle error
 	serverError := make(chan error, 1)
 
+	// Initialize database and fetch product data at startup
+	err := InitializeDBAndFetchData()
+	if err != nil {
+		log.Println("Error initializing DB and fetching data:", err)
+		serverError <- err
+		return
+	}
+
 	// Create Ollama client
 	client, err := api.ClientFromEnvironment()
 	if err != nil {
 		log.Println("Ollama client error:", err)
 		serverError <- err
+		return
 	}
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -136,6 +210,6 @@ func main() {
 	case err := <-serverError:
 		log.Printf("Server error: %v", err)
 	case shutdown := <-stop:
-		log.Println("Receive signal to shutdown server: ", shutdown)
+		log.Println("Received signal to shutdown server: ", shutdown)
 	}
 }
