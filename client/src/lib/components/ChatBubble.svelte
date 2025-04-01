@@ -68,7 +68,10 @@
                         { role: 'reasoning', content: formatMessage(reasoningText) }
                     ];
                 } else {
-                    messages = [...messages, { role: 'reasoning', content: formatMessage(reasoningText) }];
+                    messages = [
+                        ...messages,
+                        { role: 'reasoning', content: formatMessage(reasoningText) }
+                    ];
                 }
             }
         } else if (thinkStart !== -1) {
@@ -80,7 +83,10 @@
                     { role: 'reasoning', content: formatMessage(reasoningText) }
                 ];
             } else {
-                messages = [...messages, { role: 'reasoning', content: formatMessage(reasoningText) }];
+                messages = [
+                    ...messages,
+                    { role: 'reasoning', content: formatMessage(reasoningText) }
+                ];
             }
         } else {
             // No think section yet, treat as response
@@ -90,7 +96,10 @@
                     { role: 'assistant', content: formatMessage(buffer.trim()) }
                 ];
             } else {
-                messages = [...messages, { role: 'assistant', content: formatMessage(buffer.trim()) }];
+                messages = [
+                    ...messages,
+                    { role: 'assistant', content: formatMessage(buffer.trim()) }
+                ];
             }
         }
     }
