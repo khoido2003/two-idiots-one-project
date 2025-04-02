@@ -203,7 +203,7 @@
 
     {#if isOpen}
         <div
-            class="absolute bottom-16 right-0 w-[700px] h-[600px] bg-retroCream rounded-lg shadow-xl border-4 border-retroGray flex flex-col"
+            class="absolute bottom-16 right-0 w-[300px] sm:w-[500px] lg:w-[800px] h-[550px] sm:h-[600px] bg-retroCream rounded-lg shadow-xl border-4 border-retroGray flex flex-col"
         >
             <div
                 class="bg-retroGray text-retroCream p-2 rounded-t-md font-pixel text-sm flex justify-between items-center border-b-2 border-retroBlack"
