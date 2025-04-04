@@ -1,98 +1,259 @@
 <!-- /src/routes/cart/+page.svelte -->
 <script lang="ts">
+    import { GLOBAL } from '$lib';
+    import { auth } from '$lib/auth';
     import Button from '$lib/components/Button.svelte';
-    import { writable } from 'svelte/store';
+    import Toast from '$lib/components/Toast.svelte';
+    import { onMount } from 'svelte';
 
-    // Mock cart store (replace with persistent storage later)
-    const cart = writable([
-        { id: 1, name: 'NES Console', price: 59.99, image: '/assets/nes.webp', quantity: 1 },
-        { id: 3, name: 'Game Boy', price: 79.99, image: '/assets/gameboy.jpg', quantity: 2 }
-    ]);
+    interface CartItem {
+        id: number;
+        quantity: number;
+        product: {
+            price: number;
+            name: string;
+            images: { url: string }[];
+        };
+    }
 
-    // Update quantity
-    function updateQuantity(id: number, delta: number) {
-        cart.update((items) => {
-            const item = items.find((i) => i.id === id);
-            if (item) {
-                item.quantity = Math.max(1, item.quantity + delta); // Minimum 1
+    let cartItems: CartItem[] = [];
+    let loading = true;
+
+    if (!$auth.token || !$auth.user) {
+        cartItems = [];
+    }
+
+    let showToast = false;
+    let toastMessage = '';
+    let toastType: 'error' | 'success' | 'info' = 'error';
+    let originalItems: CartItem[] = [];
+    $: isUpdating = false;
+
+
+    async function fetchCart() {
+        try {
+            const response = await fetch(`${GLOBAL.SERVER_URL}/cart?userId=${$auth.user?.id}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${$auth.token}`
+                }
+            });
+            if (!response.ok) throw new Error('Failed to fetch cart');
+            const data = await response.json();
+            cartItems = data.cartItems || [];
+            originalItems = data.cartItems || [];
+        } catch (error) {
+            console.error('Error fetching cart:', error);
+            cartItems = [];
+            showToast = true;
+            toastMessage = 'Error fetching cart! Try again later';
+            toastType = 'error';
+        } finally {
+            loading = false;
+            if (cartItems.length > 0) {
+                showToast = true;
+                toastMessage = 'Fetched cart successfully';
+                toastType = 'success';
             }
-            return items;
-        });
+        }
     }
 
-    // Remove item
-    function removeItem(id: number) {
-        cart.update((items) => items.filter((i) => i.id !== id));
+    onMount(fetchCart);
+    // Add a simple debounce utility
+    // Add this to track button state
+    function logButtonState() {
+        console.log('[Button State] isUpdating:', isUpdating);
     }
 
-    // Calculate totals
-    $: subtotal = $cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    $: tax = subtotal * 0.08; // Mock 8% tax
-    $: shipping = $cart.length > 0 ? 10.0 : 0; // Mock flat shipping
+    async function updateQuantity(id: number, delta: number) {
+        if (!$auth.token) {
+            console.log('[updateQuantity] No auth token, exiting');
+            return;
+        }
+
+        const itemIndex = cartItems.findIndex((i) => i.id === id);
+        if (itemIndex === -1) {
+            console.log('[updateQuantity] Item not found, exiting');
+            return;
+        }
+
+        const currentItem = cartItems[itemIndex];
+        const newQuantity = Math.max(1, currentItem.quantity + delta);
+
+        console.log(
+            `[updateQuantity] Start - ID: ${id}, Current: ${currentItem.quantity}, New: ${newQuantity}`
+        );
+
+        cartItems = [
+            ...cartItems.slice(0, itemIndex),
+            { ...currentItem, quantity: newQuantity },
+            ...cartItems.slice(itemIndex + 1)
+        ];
+        console.log(`[updateQuantity] Optimistic - UI Quantity: ${cartItems[itemIndex].quantity}`);
+
+        try {
+            console.log('[updateQuantity] Entering try block');
+            isUpdating = true;
+            console.log('[updateQuantity] isUpdating set to true');
+
+            const response = await fetch(
+                `${GLOBAL.SERVER_URL}/cart/${id}?userId=${$auth.user?.id}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${$auth.token}`
+                    },
+                    body: JSON.stringify({ quantity: newQuantity })
+                }
+            );
+            console.log('[updateQuantity] Fetch completed, status:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.log(
+                    '[updateQuantity] Fetch failed, status:',
+                    response.status,
+                    'Error:',
+                    errorText
+                );
+                throw new Error('Failed to update quantity');
+            }
+
+            const data = await response.json();
+            console.log('[updateQuantity] Server response:', data);
+
+            cartItems = [
+                ...cartItems.slice(0, itemIndex),
+                data.cartItem,
+                ...cartItems.slice(itemIndex + 1)
+            ];
+            console.log(
+                `[updateQuantity] Server update - UI Quantity: ${cartItems[itemIndex].quantity}`
+            );
+
+            showToast = true;
+            toastMessage = 'Item updated successfully';
+            toastType = 'success';
+        } catch (error) {
+            console.error('[updateQuantity] Error:', error);
+            await fetchCart();
+            showToast = true;
+            toastMessage = 'Failed to update quantity';
+            toastType = 'error';
+        } finally {
+            console.log('[updateQuantity] Finally block - Setting isUpdating to false');
+            isUpdating = false;
+            logButtonState(); // Log after reset
+        }
+    }
+    async function removeItem(id: number) {
+        if (!$auth.token) return;
+
+        const originalItems = [...cartItems]; // Store original state
+
+        // Optimistic update
+        cartItems = cartItems.filter((i) => i.id !== id);
+
+        try {
+            isUpdating = true;
+            const response = await fetch(
+                `${GLOBAL.SERVER_URL}/cart/${id}?userId=${$auth.user?.id}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${$auth.token}`
+                    }
+                }
+            );
+            if (!response.ok) throw new Error('Failed to remove item');
+            showToast = true;
+            toastMessage = 'Item removed successfully';
+            toastType = 'success';
+        } catch (error) {
+            console.error('Error removing item:', error);
+            // Rollback on error
+            cartItems = originalItems;
+            showToast = true;
+            toastMessage = 'Failed to remove item';
+            toastType = 'error';
+        } finally {
+            isUpdating = false;
+        }
+    }
+
+    $: subtotal = cartItems.reduce(
+        (sum: number, item: CartItem) => sum + item.product.price * item.quantity,
+        0
+    );
+    $: tax = subtotal * 0.08;
+    $: shipping = cartItems.length > 0 ? 10.0 : 0;
     $: total = subtotal + tax + shipping;
 
-    // Checkout placeholder
     function checkout() {
         console.log('Proceeding to checkout with total:', total.toFixed(2));
     }
 </script>
 
 <main class="container mx-auto px-4 py-6 sm:py-8">
+    <Toast bind:visible={showToast} message={toastMessage} type={toastType} duration={3000} />
+
     <section class="mb-12 sm:mb-16">
         <h1 class="font-pixel text-3xl sm:text-4xl md:text-5xl text-retroGray mb-8 text-center">
             Your Cart
         </h1>
 
-        {#if $cart.length > 0}
-            <!-- Cart Items -->
+        {#if loading}
+            <p class="font-pixel text-retroGray text-lg text-center">Loading...</p>
+        {:else if cartItems.length > 0}
             <div class="space-y-6 mb-8">
-                {#each $cart as item (item.id)}
+                {#each cartItems as item (item.id)}
                     <div
                         class="bg-retroCream p-4 sm:p-6 rounded-xl border-4 border-retroGray shadow-[4px_4px_0_#2e2e2e] transition-all hover:shadow-[6px_6px_0_#2e2e2e]"
                     >
                         <div
-                            class="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] gap-4 sm:gap-6 items-center"
+                            class="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] gap-4 sm:gap-6 items-center justify-center"
                         >
-                            <!-- Image -->
                             <div
                                 class="w-40 h-40 sm:w-60 sm:h-48 rounded-md mb-3 sm:mb-4 pixelated"
-                                style={`background-image: url('${item.image}'); background-size: cover; background-position: center;`}
+                                style={`background-image: url('${item.product.images[0]?.url || '/placeholder.jpg'}'); background-size: cover; background-position: center;`}
                             ></div>
-
-                            <!-- Name and Description -->
                             <div class="flex flex-col justify-center">
                                 <h2
                                     class="font-pixel text-retroGray text-xl sm:text-2xl leading-tight"
                                 >
-                                    {item.name}
+                                    {item.product.name}
                                 </h2>
                                 <p class="font-body text-retroGray text-sm sm:text-base">
-                                    Unit Price: ${item.price.toFixed(2)}
+                                    Unit Price: ${item.product.price.toFixed(2)}
                                 </p>
                             </div>
-
-                            <!-- Controls and Price -->
-                            <div class="flex flex-col xl:flex-row justify-center items-center">
+                            <div
+                                class="flex flex-col xl:flex-row justify-center items-center gap-6"
+                            >
                                 <div class="flex items-center justify-center gap-6">
                                     <button
                                         on:click={() => updateQuantity(item.id, -1)}
-                                        class="w-10 h-10 bg-retroTeal text-retroCream rounded-full border-2 border-retroBlack hover:bg-retroCoral hover:scale-105 transition-all font-pixel text-lg"
+                                        class={`w-10 h-10 bg-retroTeal text-retroCream rounded-full border-2 border-retroBlack hover:bg-retroCoral hover:scale-105 transition-all font-pixel text-lg cursor-pointer ${isUpdating && 'disabled:cursor-not-allowed'}`}
                                     >
                                         -
                                     </button>
                                     <span
                                         class="font-pixel text-retroGray text-lg min-w-[2rem] text-center font-bold"
-                                        >{item.quantity}</span
                                     >
+                                        {item.quantity}
+                                    </span>
                                     <button
                                         on:click={() => updateQuantity(item.id, 1)}
-                                        class="w-10 h-10 bg-retroTeal text-retroCream rounded-full border-2 border-retroBlack hover:bg-retroCoral hover:scale-105 transition-all font-pixel text-lg"
+                                        class={`w-10 h-10 bg-retroTeal text-retroCream rounded-full border-2 border-retroBlack hover:bg-retroCoral hover:scale-105 transition-all font-pixel text-lg cursor-pointer ${isUpdating && 'disabled:cursor-not-allowed'}`}
                                     >
                                         +
                                     </button>
                                 </div>
                                 <p class="font-pixel text-retroCoral text-xl sm:text-2xl">
-                                    ${(item.price * item.quantity).toFixed(2)}
+                                    ${(item.product.price * item.quantity).toFixed(2)}
                                 </p>
                                 <button
                                     on:click={() => removeItem(item.id)}
@@ -105,8 +266,6 @@
                     </div>
                 {/each}
             </div>
-
-            <!-- Totals -->
             <div
                 class="bg-retroCream p-6 rounded-2xl border-4 border-retroGray shadow-[4px_4px_0_#2e2e2e] max-w-lg mx-auto"
             >
@@ -148,7 +307,6 @@
         {/if}
     </section>
 
-    <!-- Continue Shopping -->
     <section class="text-center">
         <a
             href="/products"
