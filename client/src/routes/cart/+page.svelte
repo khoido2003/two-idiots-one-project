@@ -1,5 +1,6 @@
 <!-- /src/routes/cart/+page.svelte -->
 <script lang="ts">
+    import { goto } from '$app/navigation';
     import { GLOBAL } from '$lib';
     import { auth } from '$lib/auth';
     import Button from '$lib/components/Button.svelte';
@@ -28,7 +29,6 @@
     let toastType: 'error' | 'success' | 'info' = 'error';
     let originalItems: CartItem[] = [];
     $: isUpdating = false;
-
 
     async function fetchCart() {
         try {
@@ -194,6 +194,7 @@
 
     function checkout() {
         console.log('Proceeding to checkout with total:', total.toFixed(2));
+        goto('/checkout');
     }
 </script>
 
@@ -293,7 +294,7 @@
                     variant="primary"
                     type="button"
                     subClass="mt-6 bg-retroTeal text-retroCream hover:bg-retroCoral transition-all duration-300 font-pixel border-2 border-retroBlack text-lg py-3 w-full"
-                    on:click={checkout}
+                    onClick={checkout}
                 >
                     Checkout
                 </Button>

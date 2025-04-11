@@ -8,7 +8,8 @@
     const navItems = [
         { name: 'Home', href: '/' },
         { name: 'Products', href: '/products' },
-        { name: 'Cart', href: '/cart' }
+        { name: 'Cart', href: '/cart' },
+        {name: "Order", href: '/orders'}
     ];
 
     // Random color generator for avatar
