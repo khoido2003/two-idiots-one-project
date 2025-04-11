@@ -31,7 +31,8 @@
                     email: data.user.email,
                     firstName: data.user.firstName,
                     lastName: data.user.lastName,
-                    role: data.user.role
+                    role: data.user.role,
+                    phone: data.user.phone
                 }
             });
             error = '';

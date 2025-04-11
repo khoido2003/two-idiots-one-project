@@ -27,6 +27,13 @@ type User struct {
 	CartItems []Cart   `gorm:"foreignKey:UserID" json:"cartItems"`
 	Orders    []Order  `gorm:"foreignKey:UserID" json:"orders"`
 	Reviews   []Review `gorm:"foreignKey:UserID" json:"reviews"`
+
+	AddressLine1 string `gorm:"type:varchar(255)" json:"addressLine1"`
+	AddressLine2 string `gorm:"type:varchar(255)" json:"addressLine2,omitempty"`
+	City         string `gorm:"type:varchar(100)" json:"city"`
+	State        string `gorm:"type:varchar(100)" json:"state"`
+	PostalCode   string `gorm:"type:varchar(20)" json:"postalCode"`
+	Country      string `gorm:"type:varchar(100)" json:"country"`
 }
 
 // Category model
@@ -94,30 +101,29 @@ type Cart struct {
 
 // Order model
 type Order struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	UserID    uint      `gorm:"index" json:"userId"`
-	Total     float64   `gorm:"not null;type:decimal(10,2)" json:"total"`
-	Status    string    `gorm:"not null;default:'pending';type:varchar(20)" json:"status"`
-	CreatedAt time.Time `gorm:"default:now()" json:"createdAt"`
-	UpdatedAt time.Time `gorm:"default:now()" json:"updatedAt"`
-
-	User  User        `gorm:"foreignKey:UserID" json:"user"`
-	Items []OrderItem `gorm:"foreignKey:OrderID" json:"items"`
+	ID           uint        `gorm:"primaryKey" json:"id"`
+	UserID       uint        `gorm:"not null" json:"userId"`
+	Total        int64       `gorm:"not null" json:"total"` // In cents
+	CreatedAt    time.Time   `json:"createdAt"`
+	AddressLine1 string      `gorm:"type:varchar(255)" json:"line1"`
+	AddressLine2 string      `gorm:"type:varchar(255)" json:"line2,omitempty"`
+	City         string      `gorm:"type:varchar(100)" json:"city"`
+	State        string      `gorm:"type:varchar(100)" json:"state"`
+	PostalCode   string      `gorm:"type:varchar(20)" json:"postalCode"`
+	Country      string      `gorm:"type:varchar(100)" json:"country"`
+	Items        []OrderItem `gorm:"foreignKey:OrderID" json:"items"`
 }
 
-// OrderItem model
 type OrderItem struct {
-	ID        uint    `gorm:"primaryKey" json:"id"`
-	OrderID   uint    `gorm:"index" json:"orderId"`
-	ProductID uint    `gorm:"index" json:"productId"`
-	Quantity  int     `gorm:"not null;check:quantity > 0" json:"quantity"`
-	Price     float64 `gorm:"not null;type:decimal(10,2)" json:"price"`
+	ID        uint   `gorm:"primaryKey" json:"id"`
+	OrderID   uint   `gorm:"not null" json:"orderId"`
+	ProductID uint   `gorm:"not null" json:"productId"`
+	Quantity  int    `gorm:"not null" json:"quantity"`
+	Price     int64  `gorm:"not null" json:"price"`         // Price at purchase time, in cents
+	Name      string `gorm:"type:varchar(255)" json:"name"` // Product name at purchase time
+} 
 
-	Order   Order   `gorm:"foreignKey:OrderID" json:"order"`
-	Product Product `gorm:"foreignKey:ProductID" json:"product"`
-}
 
-// Review model
 type Review struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	UserID    uint      `gorm:"index" json:"userId"`
