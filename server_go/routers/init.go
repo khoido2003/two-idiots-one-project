@@ -42,6 +42,7 @@ func NewRouter(handlerContext handlers.HandlerContext) *chi.Mux {
 	routerContext.CartsRoute()
     routerContext.CheckoutRoute()
     routerContext.OrderRoute()
+    routerContext.AdminRoute()
 
 	// Connnect v1  routes to the main routes
 	router.Mount("/api/v1", routerContext.v1Router)

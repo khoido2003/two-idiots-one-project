@@ -135,7 +135,7 @@ func (h *HandlerContext) Signin(w http.ResponseWriter, r *http.Request) {
 			"firstName": user.FirstName,
 			"lastName":  user.LastName,
 			"role":      user.Role,
-            "phone": user.Phone,
+			"phone":     user.Phone,
 		},
 		"token": token,
 	})
@@ -166,18 +166,6 @@ func (h *HandlerContext) AuthMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), "userID", userID)
 		ctx = context.WithValue(ctx, "role", role)
 		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-// AdminMiddleware - Restrict to admin role
-func (h *HandlerContext) AdminMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		role, ok := r.Context().Value("role").(string)
-		if !ok || role != string(models.RoleAdmin) {
-			respondWithError(w, http.StatusForbidden, "Admin access required")
-			return
-		}
-		next.ServeHTTP(w, r)
 	})
 }
 
