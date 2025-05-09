@@ -1,16 +1,21 @@
-<!-- /src/lib/components/Navbar.svelte -->
 <script lang="ts">
     import { auth, logout } from '$lib/auth';
     import { goto } from '$app/navigation';
 
     let isMenuOpen = false;
 
-    const navItems = [
+    // Base navigation items
+    const baseNavItems = [
         { name: 'Home', href: '/' },
         { name: 'Products', href: '/products' },
         { name: 'Cart', href: '/cart' },
-        {name: "Order", href: '/orders'}
+        { name: 'Order', href: '/orders' },
     ];
+
+    // Compute navItems based on user role
+    $: navItems = $auth.user?.role === 'admin'
+        ? [...baseNavItems, { name: 'Dashboard', href: '/admin/dashboard' }]
+        : baseNavItems;
 
     // Random color generator for avatar
     const colors = ['#FF6F61', '#26A69A', '#AB47BC', '#42A5F5', '#FFCA28', '#8D6E63'];
@@ -18,7 +23,7 @@
         return colors[Math.floor(Math.random() * colors.length)];
     }
 
-       $: avatarLetter = $auth.user?.firstName ? $auth.user.firstName[0].toUpperCase() : '';
+    $: avatarLetter = $auth.user?.firstName ? $auth.user.firstName[0].toUpperCase() : '';
     $: avatarColor = $auth.user ? getRandomColor() : '#FFFFFF';
 </script>
 

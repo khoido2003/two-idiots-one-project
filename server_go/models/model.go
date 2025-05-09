@@ -112,6 +112,8 @@ type Order struct {
 	PostalCode   string      `gorm:"type:varchar(20)" json:"postalCode"`
 	Country      string      `gorm:"type:varchar(100)" json:"country"`
 	Items        []OrderItem `gorm:"foreignKey:OrderID" json:"items"`
+	User         User        `gorm:"foreignKey:UserID" json:"user"`
+    Status       string      `gorm:"type:varchar(50);default:'pending'" json:"status"`
 }
 
 type OrderItem struct {
@@ -121,8 +123,7 @@ type OrderItem struct {
 	Quantity  int    `gorm:"not null" json:"quantity"`
 	Price     int64  `gorm:"not null" json:"price"`         // Price at purchase time, in cents
 	Name      string `gorm:"type:varchar(255)" json:"name"` // Product name at purchase time
-} 
-
+}
 
 type Review struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
@@ -134,4 +135,15 @@ type Review struct {
 
 	User    User    `gorm:"foreignKey:UserID" json:"user"`
 	Product Product `gorm:"foreignKey:ProductID" json:"product"`
+}
+
+type ShippingAddress struct {
+    ID         uint   `gorm:"primaryKey" json:"id"`
+    OrderID    uint   `gorm:"column:order_id;not null" json:"orderId"`
+    Line1      string `gorm:"type:varchar(255);not null" json:"line1"`
+    Line2      string `gorm:"type:varchar(255)" json:"line2"`
+    City       string `gorm:"type:varchar(100);not null" json:"city"`
+    State      string `gorm:"type:varchar(100);not null" json:"state"`
+    PostalCode string `gorm:"type:varchar(20);not null" json:"postalCode"`
+    Country    string `gorm:"type:varchar(100);not null" json:"country"`
 }
